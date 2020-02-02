@@ -1,0 +1,5 @@
+
+es:
+  host: 47.113.192.16
+  port: 9200
+  scheme: http

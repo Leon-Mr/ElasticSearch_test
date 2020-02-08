@@ -6,7 +6,6 @@ import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
@@ -20,12 +19,19 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.TermQueryBuilder;
+import org.elasticsearch.index.query.*;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
 import org.elasticsearch.index.reindex.DeleteByQueryRequest;
-import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.bucket.terms.ParsedLongTerms;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
+import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -38,6 +44,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author yi
@@ -277,5 +284,197 @@ public class TestService {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+
+    /**
+     * 范围查询
+     * @author yl
+     * @date 2020/2/7 20:39
+     * @param
+     * @return void
+     */
+    @Test
+    public void range(){
+        SearchRequest request=new SearchRequest("test_1");
+        SearchSourceBuilder sourceBuilder=new SearchSourceBuilder();
+        RangeQueryBuilder rangeQueryBuilder=QueryBuilders.rangeQuery("content").from("1993-01-01").to("1997-01-01").format("yyyy-MM-dd");
+
+        BoolQueryBuilder boolQueryBuilder=QueryBuilders.boolQuery();
+        boolQueryBuilder.must(rangeQueryBuilder);
+        sourceBuilder.query(boolQueryBuilder);
+        sourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
+        request.source(sourceBuilder);
+        try {
+            SearchResponse search = client.search(request, RequestOptions.DEFAULT);
+            SearchHits hits = search.getHits();
+            for (SearchHit hit:hits) {
+                String sourceAsString = hit.getSourceAsString();
+                JSONObject jsonObject = JSON.parseObject(sourceAsString);
+                System.out.println(jsonObject);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    /**
+     * 前缀查询
+     * @author yl
+     * @date 2020/2/7 20:39
+     * @param
+     * @return void
+     */
+    @Test
+    public void prefix(){
+        SearchRequest request=new SearchRequest("lib");
+        SearchSourceBuilder sourceBuilder=new SearchSourceBuilder();
+        PrefixQueryBuilder prefixQueryBuilder=QueryBuilders.prefixQuery("about.keyword","哈");
+
+        BoolQueryBuilder boolQueryBuilder=QueryBuilders.boolQuery();
+        boolQueryBuilder.must(prefixQueryBuilder);
+        sourceBuilder.query(boolQueryBuilder);
+        sourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
+        request.source(sourceBuilder);
+        try {
+            SearchResponse search = client.search(request, RequestOptions.DEFAULT);
+            SearchHits hits = search.getHits();
+            for (SearchHit hit:hits) {
+                String sourceAsString = hit.getSourceAsString();
+                JSONObject jsonObject = JSON.parseObject(sourceAsString);
+                System.out.println(jsonObject);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    /**
+     * 通配符查询
+     * @author yl
+     * @date 2020/2/7 20:40
+     * @param 
+     * @return void 
+     */
+    @Test
+    public void wildcard(){
+        SearchRequest request=new SearchRequest("lib");
+        SearchSourceBuilder sourceBuilder=new SearchSourceBuilder();
+        WildcardQueryBuilder wildcardQueryBuilder=QueryBuilders.wildcardQuery("about.keyword","*同");
+
+        BoolQueryBuilder boolQueryBuilder=QueryBuilders.boolQuery();
+        boolQueryBuilder.must(wildcardQueryBuilder);
+        sourceBuilder.query(boolQueryBuilder);
+        sourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
+        request.source(sourceBuilder);
+        try {
+            SearchResponse search = client.search(request, RequestOptions.DEFAULT);
+            SearchHits hits = search.getHits();
+            for (SearchHit hit:hits) {
+                String sourceAsString = hit.getSourceAsString();
+                JSONObject jsonObject = JSON.parseObject(sourceAsString);
+                System.out.println(jsonObject);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    /**
+     * 模糊查询
+     * @author yl
+     * @date 2020/2/7 20:46
+     * @param
+     * @return void
+     */
+    @Test
+    public void fuzzy(){
+        SearchRequest request=new SearchRequest("lib");
+        SearchSourceBuilder sourceBuilder=new SearchSourceBuilder();
+        FuzzyQueryBuilder fuzzyQueryBuilder=QueryBuilders.fuzzyQuery("about","同");
+
+        BoolQueryBuilder boolQueryBuilder=QueryBuilders.boolQuery();
+        boolQueryBuilder.must(fuzzyQueryBuilder);
+        sourceBuilder.query(boolQueryBuilder);
+        sourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
+        request.source(sourceBuilder);
+        try {
+            SearchResponse search = client.search(request, RequestOptions.DEFAULT);
+            SearchHits hits = search.getHits();
+            for (SearchHit hit:hits) {
+                String sourceAsString = hit.getSourceAsString();
+                JSONObject jsonObject = JSON.parseObject(sourceAsString);
+                System.out.println(jsonObject);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * where id in(,)
+     * @author yl
+     * @date 2020/2/7 20:50
+     * @param
+     * @return void
+     */
+    @Test
+    public void ids(){
+        SearchRequest request=new SearchRequest("newindex");
+        SearchSourceBuilder sourceBuilder=new SearchSourceBuilder();
+        IdsQueryBuilder idsQueryBuilder=QueryBuilders.idsQuery().addIds("1","H6znGXABp98OG4lWkitO");
+
+        BoolQueryBuilder boolQueryBuilder=QueryBuilders.boolQuery();
+        boolQueryBuilder.must(idsQueryBuilder);
+        sourceBuilder.query(boolQueryBuilder);
+        sourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
+        request.source(sourceBuilder);
+        try {
+            SearchResponse search = client.search(request, RequestOptions.DEFAULT);
+            SearchHits hits = search.getHits();
+            for (SearchHit hit:hits) {
+                String sourceAsString = hit.getSourceAsString();
+                JSONObject jsonObject = JSON.parseObject(sourceAsString);
+                System.out.println(jsonObject);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    /**
+     * 聚合函数
+     * @author yl
+     * @date 2020/2/7 21:02
+     * @param
+     * @return void
+     */
+    @Test
+    public void agg(){
+        SearchRequest request=new SearchRequest("lib");
+        SearchSourceBuilder sourceBuilder=new SearchSourceBuilder();
+        TermsAggregationBuilder termsAggregationBuilder= AggregationBuilders.terms("by_age").field("age");
+        sourceBuilder.aggregation(termsAggregationBuilder);
+
+        sourceBuilder.timeout(new TimeValue(60,TimeUnit.SECONDS));
+        request.source(sourceBuilder);
+        try {
+            SearchResponse search = client.search(request, RequestOptions.DEFAULT);
+            Aggregations aggregations=search.getAggregations();
+            Map<String, Aggregation> stringAggregationMap = aggregations.asMap();
+            ParsedLongTerms by_age = (ParsedLongTerms) stringAggregationMap.get("by_age");
+            List<? extends Terms.Bucket> buckets = by_age.getBuckets();
+            for (Terms.Bucket bucket:buckets) {
+                System.out.println(bucket.getDocCount()+"\t"+bucket.getKeyAsNumber());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
     }
 }

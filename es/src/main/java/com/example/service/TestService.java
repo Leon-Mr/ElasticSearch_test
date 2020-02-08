@@ -33,6 +33,9 @@ import org.elasticsearch.search.aggregations.bucket.terms.ParsedLongTerms;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.sort.FieldSortBuilder;
+import org.elasticsearch.search.sort.SortBuilders;
+import org.elasticsearch.search.sort.SortMode;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -474,7 +477,40 @@ public class TestService {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
 
+    /**
+     * 组合
+     * @author yl
+     * @date 2020/2/8 12:02
+     * @param
+     * @return void
+     */
+    @Test
+    public void zuhe(){
+        SearchRequest searchRequest = new SearchRequest("test_es");
+        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+        //如果用name直接查询，其实是匹配name分词过后的索引查到的记录(倒排索引)；如果用name.keyword查询则是不分词的查询，正常查询到的记录
+        RangeQueryBuilder rangeQueryBuilder = QueryBuilders.rangeQuery("birthday").from("1991-01-01").to("2010-10-10").format("yyyy-MM-dd");//范围查询
+        PrefixQueryBuilder prefixQueryBuilder = QueryBuilders.prefixQuery("name.keyword", "张");//前缀查询
+        FieldSortBuilder fieldSortBuilder = SortBuilders.fieldSort("age");//按照年龄排序
+        fieldSortBuilder.sortMode(SortMode.MIN);//从小到大排序
 
+        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
+        boolQueryBuilder.must(rangeQueryBuilder).should(prefixQueryBuilder);//and or  查询
+
+        sourceBuilder.query(boolQueryBuilder).sort(fieldSortBuilder);//多条件查询
+        sourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
+        searchRequest.source(sourceBuilder);
+        try {
+            SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
+            SearchHits hits = response.getHits();
+            for (SearchHit hit : hits) {
+                String sourceAsString = hit.getSourceAsString();
+                System.out.println(sourceAsString);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
